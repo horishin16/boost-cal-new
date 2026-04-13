@@ -3,6 +3,7 @@ import { createSupabaseServerClient, supabaseAdmin } from '@/lib/supabase/server
 import { UserRepository } from '@/domain/repositories/user-repository';
 import { CalendarInvitationRepository } from '@/domain/repositories/calendar-invitation-repository';
 import { CalendarInvitationService } from '@/domain/services/calendar-invitation-service';
+import { sendEmail, buildInvitationEmail } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
   const supabase = await createSupabaseServerClient();
@@ -40,6 +41,16 @@ export async function POST(request: NextRequest) {
 
   try {
     const invitation = await service.sendInvitation(email, user.id);
+
+    // Send invitation email
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+    const inviteUrl = `${appUrl}/invite/${invitation.token}`;
+    const { subject, html } = buildInvitationEmail({
+      inviterName: user.name,
+      inviteUrl,
+    });
+
+    await sendEmail({ to: [email], subject, html });
 
     return NextResponse.json(
       {
