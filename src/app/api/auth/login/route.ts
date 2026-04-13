@@ -8,7 +8,7 @@ export async function GET() {
     provider: 'google',
     options: {
       redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback`,
-      scopes: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events',
+      scopes: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/admin.directory.resource.calendar.readonly',
       queryParams: {
         access_type: 'offline',
         prompt: 'consent',
