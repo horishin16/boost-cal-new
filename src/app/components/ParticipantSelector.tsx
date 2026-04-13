@@ -32,6 +32,29 @@ export function ParticipantSelector({
 
   const [searched, setSearched] = useState(false);
 
+  // Fetch member info for selected IDs not yet in cache
+  useEffect(() => {
+    const uncached = selectedInternalIds.filter((id) => !memberCache[id]);
+    if (uncached.length === 0) return;
+
+    async function fetchMemberInfo() {
+      // Search by each uncached ID — we use the search API with empty query to get all, then match
+      // More efficient: fetch all members and filter
+      try {
+        const res = await fetch('/api/team/members?pageSize=100');
+        if (res.ok) {
+          const { data } = await res.json();
+          const newCache: Record<string, Member> = { ...memberCache };
+          for (const m of data) { newCache[m.id] = m; }
+          setMemberCache(newCache);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    fetchMemberInfo();
+  }, [selectedInternalIds]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Search members with debounce
   useEffect(() => {
     if (!query || query.length < 1) {
