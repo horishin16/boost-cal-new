@@ -29,6 +29,17 @@ interface CalendarGridProps {
 }
 
 const DAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
+
+const USER_COLORS = [
+  { bg: 'bg-blue-100', border: 'border-blue-200', text: 'text-blue-800', sub: 'text-blue-600' },
+  { bg: 'bg-purple-100', border: 'border-purple-200', text: 'text-purple-800', sub: 'text-purple-600' },
+  { bg: 'bg-emerald-100', border: 'border-emerald-200', text: 'text-emerald-800', sub: 'text-emerald-600' },
+  { bg: 'bg-amber-100', border: 'border-amber-200', text: 'text-amber-800', sub: 'text-amber-600' },
+  { bg: 'bg-rose-100', border: 'border-rose-200', text: 'text-rose-800', sub: 'text-rose-600' },
+  { bg: 'bg-cyan-100', border: 'border-cyan-200', text: 'text-cyan-800', sub: 'text-cyan-600' },
+  { bg: 'bg-indigo-100', border: 'border-indigo-200', text: 'text-indigo-800', sub: 'text-indigo-600' },
+  { bg: 'bg-orange-100', border: 'border-orange-200', text: 'text-orange-800', sub: 'text-orange-600' },
+];
 const START_HOUR = 8;
 const END_HOUR = 21;
 const HOUR_HEIGHT = 48; // px per hour
@@ -106,6 +117,16 @@ export function CalendarGrid({
     }
     fetchEvents();
   }, [participantIds, weekOffset]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Assign colors to unique userIds
+  const userColorMap = useMemo(() => {
+    const map = new Map<string, typeof USER_COLORS[0]>();
+    const uniqueUserIds = [...new Set(busyEvents.map((e) => e.userId))];
+    uniqueUserIds.forEach((uid, i) => {
+      map.set(uid, USER_COLORS[i % USER_COLORS.length]);
+    });
+    return map;
+  }, [busyEvents]);
 
   // Events for a given date
   const getEventsForDate = useCallback((date: Date): BusyEvent[] => {
@@ -335,11 +356,12 @@ export function CalendarGrid({
                   const startD = new Date(ev.start);
                   const endD = new Date(ev.end);
                   const timeLabel = `${String(startD.getHours()).padStart(2, '0')}:${String(startD.getMinutes()).padStart(2, '0')} - ${String(endD.getHours()).padStart(2, '0')}:${String(endD.getMinutes()).padStart(2, '0')}`;
+                  const colors = userColorMap.get(ev.userId) ?? USER_COLORS[0];
 
                   return (
                     <div
                       key={`ev-${i}`}
-                      className="absolute left-1 right-1 rounded px-1 overflow-hidden border border-blue-200 bg-blue-100 text-blue-800 z-10 cursor-default"
+                      className={`absolute left-1 right-1 rounded px-1 overflow-hidden border ${colors.border} ${colors.bg} ${colors.text} z-10 cursor-default`}
                       style={{ top, height }}
                       title={`${timeLabel}\n${ev.summary ?? '予定あり'}`}
                     >
@@ -347,7 +369,7 @@ export function CalendarGrid({
                         {ev.summary ?? '予定あり'}
                       </div>
                       {height >= 24 && (
-                        <div className="text-[9px] leading-3 text-blue-600 truncate">
+                        <div className={`text-[9px] leading-3 ${colors.sub} truncate`}>
                           {timeLabel}
                         </div>
                       )}
