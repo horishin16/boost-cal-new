@@ -36,6 +36,7 @@ interface FormData {
   weekdayTimeSlots: Record<string, TimeSlot[]>;
   dateOverrides: Record<string, TimeSlot[]>;
   excludeHolidays: boolean;
+  conferenceRoomId: string;
   internalIds: string[];
   externalEmails: string[];
 }
@@ -66,6 +67,7 @@ const defaultForm: FormData = {
   bufferInPersonVisit: 60,
   visitLocationName: '',
   visitLocationAddress: '',
+  conferenceRoomId: '',
   weekdayTimeSlots: defaultWeekdaySlots,
   dateOverrides: {},
   excludeHolidays: true,
@@ -80,6 +82,21 @@ export function ScheduleLinkForm({ editId }: ScheduleLinkFormProps) {
   const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
   const [saving, setSaving] = useState(false);
   const [showTimeSlotModal, setShowTimeSlotModal] = useState(false);
+  const [conferenceRooms, setConferenceRooms] = useState<{ id: string; name: string; capacity: number }[]>([]);
+
+  // Fetch conference rooms
+  useEffect(() => {
+    async function fetchRooms() {
+      try {
+        const res = await fetch('/api/conference-rooms');
+        if (res.ok) {
+          const { data } = await res.json();
+          setConferenceRooms(data);
+        }
+      } catch { /* ignore */ }
+    }
+    fetchRooms();
+  }, []);
   const [savedUrl, setSavedUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -110,6 +127,7 @@ export function ScheduleLinkForm({ editId }: ScheduleLinkFormProps) {
         weekdayTimeSlots: data.settings.weekdayTimeSlots ?? defaultWeekdaySlots,
         dateOverrides: data.settings.dateOverrides ?? {},
         excludeHolidays: data.settings.excludeHolidays ?? true,
+        conferenceRoomId: data.settings.conferenceRoomId ?? '',
         internalIds: data.settings.participants?.internalIds ?? [],
         externalEmails: data.settings.participants?.externalEmails ?? [],
       });
@@ -187,6 +205,7 @@ export function ScheduleLinkForm({ editId }: ScheduleLinkFormProps) {
           },
           visitLocationName: form.visitLocationName || undefined,
           visitLocationAddress: form.visitLocationAddress || undefined,
+          conferenceRoomId: form.conferenceRoomId || undefined,
           timezone: 'Asia/Tokyo',
         },
       };
@@ -400,22 +419,48 @@ export function ScheduleLinkForm({ editId }: ScheduleLinkFormProps) {
       )}
 
       {form.allowInPersonOffice && (
-        <div>
-          <label htmlFor="bufferInPersonOffice" className="block text-sm font-medium text-gray-700">
-            バッファー時間（対面・社内）
-          </label>
-          <select
-            id="bufferInPersonOffice"
-            value={form.bufferInPersonOffice}
-            onChange={(e) => updateField('bufferInPersonOffice', Number(e.target.value))}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
-          >
-            <option value={0}>なし</option>
-            <option value={15}>15分</option>
-            <option value={30}>30分</option>
-            <option value={60}>60分</option>
-          </select>
-        </div>
+        <>
+          <div>
+            <label htmlFor="bufferInPersonOffice" className="block text-sm font-medium text-gray-700">
+              バッファー時間（対面・社内）
+            </label>
+            <select
+              id="bufferInPersonOffice"
+              value={form.bufferInPersonOffice}
+              onChange={(e) => updateField('bufferInPersonOffice', Number(e.target.value))}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+            >
+              <option value={0}>なし</option>
+              <option value={15}>15分</option>
+              <option value={30}>30分</option>
+              <option value={60}>60分</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="conferenceRoom" className="block text-sm font-medium text-gray-700">
+              会議室
+            </label>
+            {conferenceRooms.length > 0 ? (
+              <select
+                id="conferenceRoom"
+                value={form.conferenceRoomId}
+                onChange={(e) => updateField('conferenceRoomId', e.target.value)}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
+              >
+                <option value="">指定なし</option>
+                {conferenceRooms.map((room) => (
+                  <option key={room.id} value={room.id}>
+                    {room.name}{room.capacity > 0 ? ` (${room.capacity}人)` : ''}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p className="mt-1 text-xs text-gray-500">
+                会議室が見つかりません。Google Workspace に会議室リソースが登録されているか確認してください。
+              </p>
+            )}
+          </div>
+        </>
       )}
 
       {form.allowInPersonVisit && (
