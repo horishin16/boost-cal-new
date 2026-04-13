@@ -58,7 +58,33 @@ describe('ParticipantSelector', () => {
     expect(defaultProps.onChangeExternal).toHaveBeenCalledWith(['guest@gmail.com']);
   });
 
-  it('should display selected external emails with actions', () => {
+  it('should show validation error for invalid email', () => {
+    render(<ParticipantSelector {...defaultProps} />);
+
+    const input = screen.getByPlaceholderText('guest@example.com');
+    fireEvent.change(input, { target: { value: 'invalid-email' } });
+    fireEvent.click(screen.getByText('追加'));
+
+    expect(screen.getByText('正しいメールアドレスを入力してください')).toBeInTheDocument();
+    expect(defaultProps.onChangeExternal).not.toHaveBeenCalled();
+  });
+
+  it('should show duplicate error', () => {
+    render(
+      <ParticipantSelector
+        {...defaultProps}
+        selectedExternalEmails={['guest@gmail.com']}
+      />
+    );
+
+    const input = screen.getByPlaceholderText('guest@example.com');
+    fireEvent.change(input, { target: { value: 'guest@gmail.com' } });
+    fireEvent.click(screen.getByText('追加'));
+
+    expect(screen.getByText('既に追加されています')).toBeInTheDocument();
+  });
+
+  it('should display external emails with invitation status', () => {
     render(
       <ParticipantSelector
         {...defaultProps}
@@ -67,8 +93,8 @@ describe('ParticipantSelector', () => {
     );
 
     expect(screen.getByText('guest@gmail.com')).toBeInTheDocument();
-    expect(screen.getByText('連携依頼')).toBeInTheDocument();
-    expect(screen.getByText('削除')).toBeInTheDocument();
+    expect(screen.getByText('未招待')).toBeInTheDocument();
+    expect(screen.getByText('連携依頼を送信')).toBeInTheDocument();
   });
 
   it('should remove external email on delete click', () => {
@@ -79,14 +105,14 @@ describe('ParticipantSelector', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('削除'));
+    fireEvent.click(screen.getByText('×'));
     expect(defaultProps.onChangeExternal).toHaveBeenCalledWith([]);
   });
 
-  it('should send invitation on invite click', async () => {
+  it('should send invitation and show status', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => ({}),
+      json: async () => ({ data: { id: 'inv-1', status: 'PENDING' } }),
     });
 
     render(
@@ -96,16 +122,31 @@ describe('ParticipantSelector', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('連携依頼'));
+    fireEvent.click(screen.getByText('連携依頼を送信'));
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        '/api/calendar-invitations',
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({ email: 'guest@gmail.com' }),
-        })
-      );
+      expect(screen.getByText('招待送信済み')).toBeInTheDocument();
+      expect(screen.getByText('再送信')).toBeInTheDocument();
+    });
+  });
+
+  it('should show linked status for already linked email', async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: 'ALREADY_LINKED', message: '既にカレンダー連携済みです' }),
+    });
+
+    render(
+      <ParticipantSelector
+        {...defaultProps}
+        selectedExternalEmails={['guest@gmail.com']}
+      />
+    );
+
+    fireEvent.click(screen.getByText('連携依頼を送信'));
+
+    await waitFor(() => {
+      expect(screen.getByText('連携済み')).toBeInTheDocument();
     });
   });
 });

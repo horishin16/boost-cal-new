@@ -9,6 +9,8 @@ interface Member {
   linked: boolean | 'external';
 }
 
+type InvitationStatus = 'none' | 'sending' | 'sent' | 'linked' | 'error';
+
 interface ParticipantSelectorProps {
   selectedInternalIds: string[];
   selectedExternalEmails: string[];
@@ -26,10 +28,9 @@ export function ParticipantSelector({
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(false);
   const [externalEmail, setExternalEmail] = useState('');
-  const [invitingEmail, setInvitingEmail] = useState<string | null>(null);
-  // Cache member info for display of selected members
+  const [emailError, setEmailError] = useState('');
+  const [invitationStatuses, setInvitationStatuses] = useState<Record<string, InvitationStatus>>({});
   const [memberCache, setMemberCache] = useState<Record<string, Member>>({});
-
   const [searched, setSearched] = useState(false);
 
   // Fetch member info for selected IDs not yet in cache
@@ -38,8 +39,6 @@ export function ParticipantSelector({
     if (uncached.length === 0) return;
 
     async function fetchMemberInfo() {
-      // Search by each uncached ID — we use the search API with empty query to get all, then match
-      // More efficient: fetch all members and filter
       try {
         const res = await fetch('/api/team/members?pageSize=100');
         if (res.ok) {
@@ -48,12 +47,34 @@ export function ParticipantSelector({
           for (const m of data) { newCache[m.id] = m; }
           setMemberCache(newCache);
         }
-      } catch {
-        // ignore
-      }
+      } catch { /* ignore */ }
     }
     fetchMemberInfo();
   }, [selectedInternalIds]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Check linked status for external emails on mount
+  useEffect(() => {
+    if (selectedExternalEmails.length === 0) return;
+    async function checkStatuses() {
+      try {
+        const res = await fetch('/api/team/members?pageSize=100');
+        if (res.ok) {
+          const { data } = await res.json();
+          const newStatuses: Record<string, InvitationStatus> = { ...invitationStatuses };
+          for (const email of selectedExternalEmails) {
+            const found = data.find((m: Member) => m.email === email);
+            if (found && found.linked) {
+              newStatuses[email] = 'linked';
+            } else if (!newStatuses[email]) {
+              newStatuses[email] = 'none';
+            }
+          }
+          setInvitationStatuses(newStatuses);
+        }
+      } catch { /* ignore */ }
+    }
+    checkStatuses();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Search members with debounce
   useEffect(() => {
@@ -71,7 +92,6 @@ export function ParticipantSelector({
         if (res.ok) {
           const { data } = await res.json();
           setMembers(data);
-          // Cache member info
           const newCache: Record<string, Member> = { ...memberCache };
           for (const m of data) { newCache[m.id] = m; }
           setMemberCache(newCache);
@@ -82,7 +102,7 @@ export function ParticipantSelector({
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleInternal = useCallback(
     (id: string) => {
@@ -97,32 +117,67 @@ export function ParticipantSelector({
 
   const addExternalEmail = useCallback(() => {
     const email = externalEmail.trim();
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
-    if (selectedExternalEmails.includes(email)) return;
+    setEmailError('');
+
+    if (!email) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailError('正しいメールアドレスを入力してください');
+      return;
+    }
+    if (selectedExternalEmails.includes(email)) {
+      setEmailError('既に追加されています');
+      return;
+    }
 
     onChangeExternal([...selectedExternalEmails, email]);
+    setInvitationStatuses((prev) => ({ ...prev, [email]: 'none' }));
     setExternalEmail('');
   }, [externalEmail, selectedExternalEmails, onChangeExternal]);
 
   const removeExternal = useCallback(
     (email: string) => {
       onChangeExternal(selectedExternalEmails.filter((e) => e !== email));
+      setInvitationStatuses((prev) => {
+        const next = { ...prev };
+        delete next[email];
+        return next;
+      });
     },
     [selectedExternalEmails, onChangeExternal]
   );
 
   const sendInvitation = useCallback(async (email: string) => {
-    setInvitingEmail(email);
+    setInvitationStatuses((prev) => ({ ...prev, [email]: 'sending' }));
     try {
-      await fetch('/api/calendar-invitations', {
+      const res = await fetch('/api/calendar-invitations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
-    } finally {
-      setInvitingEmail(null);
+      if (res.ok) {
+        setInvitationStatuses((prev) => ({ ...prev, [email]: 'sent' }));
+      } else {
+        const err = await res.json();
+        if (err.error === 'ALREADY_LINKED') {
+          setInvitationStatuses((prev) => ({ ...prev, [email]: 'linked' }));
+        } else {
+          setInvitationStatuses((prev) => ({ ...prev, [email]: 'error' }));
+        }
+      }
+    } catch {
+      setInvitationStatuses((prev) => ({ ...prev, [email]: 'error' }));
     }
   }, []);
+
+  const getStatusLabel = (status: InvitationStatus) => {
+    switch (status) {
+      case 'sending': return { text: '送信中...', color: 'text-gray-500' };
+      case 'sent': return { text: '招待送信済み', color: 'text-green-600' };
+      case 'linked': return { text: '連携済み', color: 'text-blue-600' };
+      case 'error': return { text: '送信失敗', color: 'text-red-500' };
+      default: return { text: '未招待', color: 'text-gray-400' };
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -137,7 +192,7 @@ export function ParticipantSelector({
           id="member-search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+          className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
           placeholder="名前またはメールで検索"
         />
 
@@ -154,7 +209,9 @@ export function ParticipantSelector({
             {members.map((m) => (
               <li
                 key={m.id}
-                className="flex items-center justify-between px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                className={`flex items-center justify-between px-3 py-2 cursor-pointer ${
+                  selectedInternalIds.includes(m.id) ? 'bg-blue-50' : 'hover:bg-gray-50'
+                }`}
                 onClick={() => toggleInternal(m.id)}
               >
                 <div>
@@ -223,14 +280,14 @@ export function ParticipantSelector({
             id="external-email"
             type="email"
             value={externalEmail}
-            onChange={(e) => setExternalEmail(e.target.value)}
+            onChange={(e) => { setExternalEmail(e.target.value); setEmailError(''); }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
                 addExternalEmail();
               }
             }}
-            className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900"
             placeholder="guest@example.com"
           />
           <button
@@ -241,37 +298,64 @@ export function ParticipantSelector({
             追加
           </button>
         </div>
+        {emailError && <p className="mt-1 text-xs text-red-500">{emailError}</p>}
       </div>
 
       {/* Selected external emails */}
       {selectedExternalEmails.length > 0 && (
-        <ul className="space-y-1">
-          {selectedExternalEmails.map((email) => (
-            <li
-              key={email}
-              className="flex items-center justify-between bg-gray-50 rounded-md px-3 py-2"
-            >
-              <span className="text-sm text-gray-700">{email}</span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => sendInvitation(email)}
-                  disabled={invitingEmail === email}
-                  className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50"
+        <div>
+          <p className="text-xs text-gray-500 mb-1">
+            外部参加者 ({selectedExternalEmails.length}人)
+          </p>
+          <ul className="space-y-1">
+            {selectedExternalEmails.map((email) => {
+              const status = invitationStatuses[email] ?? 'none';
+              const statusLabel = getStatusLabel(status);
+
+              return (
+                <li
+                  key={email}
+                  className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-md px-3 py-2"
                 >
-                  {invitingEmail === email ? '送信中...' : '連携依頼'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => removeExternal(email)}
-                  className="text-xs text-red-500 hover:text-red-700"
-                >
-                  削除
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
+                  <div>
+                    <p className="text-sm text-gray-900">{email}</p>
+                    <p className={`text-xs ${statusLabel.color}`}>{statusLabel.text}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {(status === 'none' || status === 'error') && (
+                      <button
+                        type="button"
+                        onClick={() => sendInvitation(email)}
+                        className="text-xs px-2 py-1 rounded border border-blue-300 text-blue-600 hover:bg-blue-50"
+                      >
+                        連携依頼を送信
+                      </button>
+                    )}
+                    {status === 'sending' && (
+                      <span className="text-xs text-gray-400">送信中...</span>
+                    )}
+                    {status === 'sent' && (
+                      <button
+                        type="button"
+                        onClick={() => sendInvitation(email)}
+                        className="text-xs text-gray-500 hover:text-gray-700"
+                      >
+                        再送信
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeExternal(email)}
+                      className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
     </div>
   );
