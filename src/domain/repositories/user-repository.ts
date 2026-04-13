@@ -144,19 +144,20 @@ export class UserRepository {
     };
   }
 
-  async getTokensByIds(ids: string[]): Promise<Pick<User, 'id' | 'accessToken' | 'refreshToken'>[]> {
+  async getTokensByIds(ids: string[]): Promise<Pick<User, 'id' | 'accessToken' | 'refreshToken' | 'domain'>[]> {
     if (ids.length === 0) return [];
 
     const { data, error } = await this.db
       .from('users')
-      .select('id, access_token, refresh_token')
+      .select('id, access_token, refresh_token, domain')
       .in('id', ids);
 
     if (error) throw new Error(error.message);
-    return (data as { id: string; access_token: string | null; refresh_token: string | null }[]).map((row) => ({
+    return (data as { id: string; access_token: string | null; refresh_token: string | null; domain: string }[]).map((row) => ({
       id: row.id,
       accessToken: row.access_token,
       refreshToken: row.refresh_token,
+      domain: row.domain,
     }));
   }
 }
