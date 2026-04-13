@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BoostCal - ワイヤーフレーム</title>
+  <style>
+    /* === Reset & Base === */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* === Layout === */
+    .wireframe-app { min-height: 100vh; display: flex; flex-direction: column; }
+    .wireframe-header {
+      background: #fff;
+      border-bottom: 2px solid #e0e0e0;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .wireframe-header-logo { font-weight: 700; font-size: 18px; color: #1a56db; }
+    .wireframe-header-nav { display: flex; gap: 8px; flex-wrap: wrap; }
+    .wireframe-header-nav button {
+      padding: 4px 12px;
+      font-size: 12px;
+      border: 1px solid #ccc;
+      background: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .wireframe-header-nav button.active { background: #1a56db; color: #fff; border-color: #1a56db; }
+    .wireframe-header-nav button:hover { background: #e8e8e8; }
+    .wireframe-header-nav button.active:hover { background: #1544b8; }
+    .wireframe-current-screen {
+      font-size: 12px;
+      color: #888;
+      padding: 4px 12px;
+      background: #f0f0f0;
+      border-radius: 12px;
+    }
+
+    .wireframe-main { flex: 1; padding: 0; }
+    section[data-screen-id] { display: none; min-height: calc(100vh - 56px); }
+    section[data-screen-id].active { display: block; }
+
+    /* === Common Components === */
+    .wf-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 20px;
+      border: 2px solid #333;
+      background: #fff;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .wf-btn:hover { background: #f0f0f0; }
+    .wf-btn-primary { background: #1a56db; color: #fff; border-color: #1a56db; }
+    .wf-btn-primary:hover { background: #1544b8; }
+    .wf-btn-danger { border-color: #dc2626; color: #dc2626; }
+    .wf-btn-danger:hover { background: #fef2f2; }
+    .wf-btn-sm { padding: 6px 12px; font-size: 12px; }
+    .wf-btn-ghost { border: none; background: none; color: #666; }
+    .wf-btn-ghost:hover { background: #f0f0f0; }
+
+    .wf-input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 2px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 14px;
+      background: #fff;
+    }
+    .wf-textarea { min-height: 80px; resize: vertical; }
+    .wf-label { font-size: 13px; font-weight: 600; color: #555; margin-bottom: 4px; display: block; }
+    .wf-card {
+      background: #fff;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .wf-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      font-size: 11px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+    .wf-badge-green { background: #dcfce7; color: #166534; }
+    .wf-badge-yellow { background: #fef9c3; color: #854d0e; }
+    .wf-badge-gray { background: #f3f4f6; color: #6b7280; }
+    .wf-badge-blue { background: #dbeafe; color: #1e40af; }
+
+    .wf-divider { border: none; border-top: 1px solid #e5e7eb; margin: 16px 0; }
+
+    .wf-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+    .wf-modal {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 480px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    .wf-modal-title { font-size: 18px; font-weight: 700; margin-bottom: 12px; }
+
+    .wf-toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: #fff;
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      z-index: 300;
+      display: none;
+    }
+    .wf-toast.show { display: block; }
+
+    /* === Screen: Login (S01) === */
+    .login-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - 56px);
+      background: linear-gradient(135deg, #eff6ff 0%, #f5f5f5 100%);
+    }
+    .login-card {
+      text-align: center;
+      padding: 48px 40px;
+      max-width: 400px;
+      width: 90%;
+    }
+    .login-logo {
+      width: 64px;
+      height: 64px;
+      background: #1a56db;
+      border-radius: 12px;
+      margin: 0 auto 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 700;
+      font-size: 24px;
+    }
+    .login-title { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+    .login-subtitle { color: #888; font-size: 14px; margin-bottom: 32px; }
+    .login-google-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      padding: 14px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      background: #fff;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .login-google-btn:hover { border-color: #1a56db; background: #f8faff; }
+    .login-google-icon {
+      width: 20px; height: 20px;
+      background: #ea4335;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .login-domain-note { margin-top: 16px; font-size: 12px; color: #999; }
+
+    /* === Screen: Dashboard (S02) === */
+    .dashboard-wrapper { max-width: 960px; margin: 0 auto; padding: 24px 20px; }
+    .dashboard-banner {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+    .dashboard-banner-ok { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .dashboard-banner-warn { background: #fef9c3; color: #854d0e; border: 1px solid #fde68a; }
+    .dashboard-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .dashboard-topbar h2 { font-size: 20px; font-weight: 700; }
+    .dashboard-user {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      color: #666;
+    }
+    .dashboard-avatar {
+      width: 32px;
+      height: 32px;
+      background: #d1d5db;
+      border-radius: 50%;
+    }
+    .link-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .link-card-info { flex: 1; min-width: 200px; }
+    .link-card-name { font-weight: 600; font-size: 16px; margin-bottom: 4px; }
+    .link-card-url { font-size: 12px; color: #1a56db; margin-bottom: 4px; font-family: monospace; }
+    .link-card-meta { font-size: 12px; color: #999; display: flex; gap: 12px; flex-wrap: wrap; }
+    .link-card-actions { display: flex; gap: 6px; }
+    .link-empty {
+      text-align: center;
+      padding: 48px;
+      color: #999;
+    }
+    .link-empty-icon { font-size: 48px; margin-bottom: 12px; }
+
+    /* === Screen: Create/Edit Link (S03/S04) === */
+    .create-wrapper { max-width: 800px; margin: 0 auto; padding: 24px 20px; }
+    .create-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .create-header h2 { font-size: 20px; font-weight: 700; }
+    .create-section { margin-bottom: 24px; }
+    .create-section-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    .form-group { margin-bottom: 16px; }
+    .slug-preview {
+      font-size: 12px;
+      color: #888;
+      margin-top: 4px;
+      font-family: monospace;
+    }
+
+    /* Participants */
+    .participants-search {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .participant-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .participant-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: #f3f4f6;
+      border-radius: 20px;
+      font-size: 13px;
+    }
+    .participant-chip .remove { cursor: pointer; color: #999; font-weight: 700; }
+
+    /* Duration */
+    .duration-group { display: flex; gap: 8px; flex-wrap: wrap; }
+    .duration-btn {
+      padding: 8px 16px;
+      border: 2px solid #d1d5db;
+      border-radius: 6px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .duration-btn.selected { border-color: #1a56db; background: #eff6ff; color: #1a56db; font-weight: 600; }
+
+    /* Calendar Grid */
+    .calendar-grid-container {
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .calendar-grid-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: #f9fafb;
+      border-bottom: 1px solid #e0e0e0;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .calendar-grid-nav { display: flex; align-items: center; gap: 8px; }
+    .calendar-grid-week { font-weight: 600; font-size: 14px; }
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: 60px repeat(7, 1fr);
+      min-height: 400px;
+    }
+    .calendar-grid-header {
+      text-align: center;
+      padding: 8px 4px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #f9fafb;
+      border-bottom: 1px solid #e0e0e0;
+      border-right: 1px solid #f0f0f0;
+    }
+    .calendar-grid-header.holiday { color: #dc2626; }
+    .calendar-grid-time {
+      padding: 4px 8px;
+      font-size: 11px;
+      color: #999;
+      text-align: right;
+      border-right: 1px solid #e0e0e0;
+      height: 40px;
+      border-bottom: 1px solid #f5f5f5;
+    }
+    .calendar-grid-cell {
+      border-right: 1px solid #f0f0f0;
+      border-bottom: 1px solid #f5f5f5;
+      height: 40px;
+      position: relative;
+    }
+    .calendar-grid-cell .busy-block {
+      position: absolute;
+      inset: 2px;
+      background: #fee2e2;
+      border-radius: 3px;
+      font-size: 10px;
+      padding: 2px 4px;
+      color: #991b1b;
+      overflow: hidden;
+    }
+    .calendar-grid-cell .available-block {
+      position: absolute;
+      inset: 2px;
+      background: #dbeafe;
+      border: 2px solid #1a56db;
+      border-radius: 3px;
+      font-size: 10px;
+      padding: 2px 4px;
+      color: #1a56db;
+      cursor: grab;
+    }
+    .holiday-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+    .toggle-switch {
+      width: 36px;
+      height: 20px;
+      background: #1a56db;
+      border-radius: 10px;
+      position: relative;
+      display: inline-block;
+    }
+    .toggle-switch::after {
+      content: '';
+      width: 16px;
+      height: 16px;
+      background: #fff;
+      border-radius: 50%;
+      position: absolute;
+      top: 2px;
+      right: 2px;
+    }
+
+    /* Meeting Options */
+    .meeting-options { display: flex; flex-direction: column; gap: 12px; }
+    .meeting-option-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+    }
+    .meeting-option-item.checked { border-color: #1a56db; background: #f8faff; }
+    .checkbox-fake {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #d1d5db;
+      border-radius: 4px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .checkbox-fake.checked { background: #1a56db; border-color: #1a56db; }
+    .meeting-option-details { flex: 1; }
+    .meeting-option-label { font-weight: 600; font-size: 14px; }
+    .meeting-option-desc { font-size: 12px; color: #888; margin-top: 2px; }
+    .meeting-sub-field {
+      margin-top: 8px;
+      padding: 8px 12px;
+      background: #f9fafb;
+      border-radius: 6px;
+    }
+    .buffer-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      font-size: 13px;
+    }
+    .buffer-input {
+      width: 60px;
+      padding: 4px 8px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      text-align: center;
+      font-size: 13px;
+    }
+
+    /* === Screen: Booking Page (S05) === */
+    .booking-wrapper { max-width: 960px; margin: 0 auto; padding: 24px 20px; }
+    .booking-header-info {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .booking-host { font-size: 14px; color: #888; margin-bottom: 4px; }
+    .booking-title { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+    .booking-desc { font-size: 14px; color: #666; }
+    .booking-login-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px;
+      background: #f9fafb;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: #666;
+    }
+    .booking-mode-selector {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .booking-mode-btn {
+      padding: 8px 16px;
+      border: 2px solid #d1d5db;
+      border-radius: 6px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .booking-mode-btn.selected { border-color: #1a56db; background: #eff6ff; color: #1a56db; font-weight: 600; }
+    .booking-layout {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+    }
+    .booking-calendar-side { flex: 1; min-width: 280px; }
+    .booking-slots-side { width: 300px; flex-shrink: 0; }
+    .mini-calendar {
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .mini-calendar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px;
+      font-weight: 600;
+    }
+    .mini-calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+      padding: 0 8px 8px;
+    }
+    .mini-calendar-day-header { text-align: center; font-size: 11px; color: #999; padding: 4px; }
+    .mini-calendar-day {
+      text-align: center;
+      padding: 8px 4px;
+      font-size: 13px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .mini-calendar-day:hover { background: #f0f0f0; }
+    .mini-calendar-day.available { color: #1a56db; font-weight: 600; }
+    .mini-calendar-day.available::after {
+      content: '';
+      display: block;
+      width: 4px;
+      height: 4px;
+      background: #1a56db;
+      border-radius: 50%;
+      margin: 2px auto 0;
+    }
+    .mini-calendar-day.selected { background: #1a56db; color: #fff; }
+    .mini-calendar-day.selected::after { background: #fff; }
+    .mini-calendar-day.empty { visibility: hidden; }
+    .mini-calendar-day.today { border: 2px solid #1a56db; }
+
+    .booking-duration-selector {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .slot-list { display: flex; flex-direction: column; gap: 6px; }
+    .slot-item {
+      padding: 12px 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      text-align: center;
+      transition: all 0.15s;
+    }
+    .slot-item:hover { border-color: #1a56db; background: #f8faff; }
+    .slot-item.selected { border-color: #1a56db; background: #1a56db; color: #fff; }
+    .slot-date-label { font-weight: 600; margin-bottom: 8px; font-size: 14px; }
+    .slot-empty { text-align: center; padding: 24px; color: #999; font-size: 14px; }
+
+    /* Booking Form */
+    .booking-form-section {
+      margin-top: 24px;
+      padding: 24px;
+      border: 2px solid #1a56db;
+      border-radius: 8px;
+      background: #f8faff;
+    }
+    .booking-form-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+    .booking-summary {
+      padding: 12px;
+      background: #fff;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .booking-summary-item { display: flex; gap: 8px; }
+    .booking-summary-label { color: #888; width: 80px; flex-shrink: 0; }
+
+    /* Location info */
+    .location-info {
+      padding: 12px;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 6px;
+      margin-top: 12px;
+      font-size: 13px;
+    }
+
+    /* === Screen: Booking Complete (S06) === */
+    .complete-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - 56px);
+    }
+    .complete-card {
+      text-align: center;
+      padding: 48px 40px;
+      max-width: 500px;
+      width: 90%;
+    }
+    .complete-icon {
+      width: 64px;
+      height: 64px;
+      background: #dcfce7;
+      border-radius: 50%;
+      margin: 0 auto 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      color: #166534;
+    }
+    .complete-title { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    .complete-subtitle { color: #888; font-size: 14px; margin-bottom: 24px; }
+    .complete-details {
+      text-align: left;
+      padding: 16px;
+      background: #f9fafb;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    .complete-detail-row {
+      display: flex;
+      gap: 12px;
+      padding: 6px 0;
+    }
+    .complete-detail-label { color: #888; width: 100px; flex-shrink: 0; }
+
+    /* === Screen: Error (S07) === */
+    .error-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - 56px);
+    }
+    .error-card {
+      text-align: center;
+      padding: 48px 40px;
+      max-width: 400px;
+      width: 90%;
+    }
+    .error-icon {
+      width: 64px;
+      height: 64px;
+      background: #fee2e2;
+      border-radius: 50%;
+      margin: 0 auto 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      color: #991b1b;
+    }
+
+    /* === Delete Confirm Modal === */
+    .delete-modal { display: none; }
+    .delete-modal.show { display: flex; }
+
+    /* === Responsive === */
+    @media (max-width: 768px) {
+      .wireframe-header { padding: 8px 12px; }
+      .wireframe-header-nav { gap: 4px; }
+      .wireframe-header-nav button { padding: 3px 8px; font-size: 11px; }
+      .booking-layout { flex-direction: column; }
+      .booking-slots-side { width: 100%; }
+      .calendar-grid { grid-template-columns: 48px repeat(7, 1fr); }
+      .calendar-grid-time { font-size: 10px; padding: 2px 4px; }
+      .link-card { flex-direction: column; align-items: flex-start; }
+      .link-card-actions { width: 100%; justify-content: flex-end; }
+      .dashboard-topbar { flex-direction: column; align-items: flex-start; }
+      .create-wrapper, .booking-wrapper, .dashboard-wrapper { padding: 16px 12px; }
+      .participants-search { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wireframe-app">
+    <!-- Header Navigation -->
+    <header class="wireframe-header">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span class="wireframe-header-logo">BoostCal</span>
+        <span class="wireframe-current-screen" id="currentScreenLabel">S01: ログイン</span>
+      </div>
+      <nav class="wireframe-header-nav">
+        <button data-target-screen="S01" class="active">ログイン</button>
+        <button data-target-screen="S02">ダッシュボード</button>
+        <button data-target-screen="S03">新規作成</button>
+        <button data-target-screen="S04">編集</button>
+        <button data-target-screen="S05">予約ページ</button>
+        <button data-target-screen="S06">予約完了</button>
+        <button data-target-screen="S07">エラー</button>
+      </nav>
+    </header>
+
+    <main class="wireframe-main">
+
+      <!-- ==================== S01: ログイン画面 ==================== -->
+      <section data-screen-id="S01" class="active">
+        <div class="login-wrapper">
+          <div class="login-card wf-card">
+            <div class="login-logo">B</div>
+            <h1 class="login-title">BoostCal</h1>
+            <p class="login-subtitle">スケジュール調整をもっとスマートに</p>
+            <button class="login-google-btn" data-target-screen="S02">
+              <span class="login-google-icon"></span>
+              Googleでログイン
+            </button>
+            <p class="login-domain-note">
+              boostconsulting.co.jp / boostcapital.co.jp<br>ドメインのアカウントでログインできます
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== S02: ダッシュボード ==================== -->
+      <section data-screen-id="S02">
+        <div class="dashboard-wrapper">
+          <!-- User bar -->
+          <div class="dashboard-topbar">
+            <h2>スケジュールリンク</h2>
+            <div class="dashboard-user">
+              <div class="dashboard-avatar"></div>
+              <span>山田 太郎</span>
+              <button class="wf-btn wf-btn-sm wf-btn-ghost" data-target-screen="S01">ログアウト</button>
+            </div>
+          </div>
+
+          <!-- Google Calendar banner -->
+          <div class="dashboard-banner dashboard-banner-ok">
+            <span>&#x2713;</span> Google Calendar 連携済み
+          </div>
+
+          <!-- Create button -->
+          <div style="margin-bottom:16px;">
+            <button class="wf-btn wf-btn-primary" data-target-screen="S03">+ 新規作成</button>
+          </div>
+
+          <!-- Link cards -->
+          <div class="link-card wf-card">
+            <div class="link-card-info">
+              <div class="link-card-name">定例ミーティング調整</div>
+              <div class="link-card-url">boostcal.app/schedule/yamada-meeting</div>
+              <div class="link-card-meta">
+                <span><span class="wf-badge wf-badge-blue">個人</span></span>
+                <span>参加者: 3名</span>
+                <span>作成: 2026/04/01</span>
+              </div>
+            </div>
+            <div class="link-card-actions">
+              <button class="wf-btn wf-btn-sm" onclick="showToast('URLをコピーしました')">コピー</button>
+              <button class="wf-btn wf-btn-sm" data-target-screen="S04">編集</button>
+              <button class="wf-btn wf-btn-sm wf-btn-danger" onclick="showDeleteModal()">削除</button>
+            </div>
+          </div>
+
+          <div class="link-card wf-card">
+            <div class="link-card-info">
+              <div class="link-card-name">採用面接スケジュール</div>
+              <div class="link-card-url">boostcal.app/schedule/interview-2026</div>
+              <div class="link-card-meta">
+                <span><span class="wf-badge wf-badge-green">チーム</span></span>
+                <span>参加者: 5名</span>
+                <span>作成: 2026/03/28</span>
+              </div>
+            </div>
+            <div class="link-card-actions">
+              <button class="wf-btn wf-btn-sm" onclick="showToast('URLをコピーしました')">コピー</button>
+              <button class="wf-btn wf-btn-sm" data-target-screen="S04">編集</button>
+              <button class="wf-btn wf-btn-sm wf-btn-danger" onclick="showDeleteModal()">削除</button>
+            </div>
+          </div>
+
+          <div class="link-card wf-card">
+            <div class="link-card-info">
+              <div class="link-card-name">クライアントMTG（BC社）</div>
+              <div class="link-card-url">boostcal.app/schedule/bc-mtg</div>
+              <div class="link-card-meta">
+                <span><span class="wf-badge wf-badge-blue">個人</span></span>
+                <span>参加者: 2名</span>
+                <span>作成: 2026/03/15</span>
+              </div>
+            </div>
+            <div class="link-card-actions">
+              <button class="wf-btn wf-btn-sm" onclick="showToast('URLをコピーしました')">コピー</button>
+              <button class="wf-btn wf-btn-sm" data-target-screen="S04">編集</button>
+              <button class="wf-btn wf-btn-sm wf-btn-danger" onclick="showDeleteModal()">削除</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Delete Confirm Modal -->
+        <div class="wf-overlay delete-modal" id="deleteModal">
+          <div class="wf-modal">
+            <div class="wf-modal-title">リンクを削除しますか？</div>
+            <p style="font-size:14px;color:#666;margin-bottom:20px;">この操作は取り消せません。関連する予約データも削除されます。</p>
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+              <button class="wf-btn" onclick="hideDeleteModal()">キャンセル</button>
+              <button class="wf-btn wf-btn-danger" onclick="hideDeleteModal(); showToast('リンクを削除しました')">削除する</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== S03: 新規作成 ==================== -->
+      <section data-screen-id="S03">
+        <div class="create-wrapper">
+          <div class="create-header">
+            <button class="wf-btn wf-btn-sm wf-btn-ghost" data-target-screen="S02">&larr; 戻る</button>
+            <h2>スケジュールリンクを作成</h2>
+          </div>
+
+          <!-- Basic Info -->
+          <div class="create-section">
+            <div class="create-section-title">基本情報</div>
+            <div class="form-group">
+              <label class="wf-label">タイトル</label>
+              <input class="wf-input" placeholder="例: 定例ミーティング調整" value="">
+            </div>
+            <div class="form-group">
+              <label class="wf-label">スラッグ（URL末尾）</label>
+              <input class="wf-input" placeholder="例: yamada-meeting" value="">
+              <div class="slug-preview">boostcal.app/schedule/<strong>ここに表示</strong></div>
+            </div>
+            <div class="form-group">
+              <label class="wf-label">説明（任意）</label>
+              <textarea class="wf-input wf-textarea" placeholder="リンクの説明を入力..."></textarea>
+            </div>
+          </div>
+
+          <!-- Participants -->
+          <div class="create-section">
+            <div class="create-section-title">参加者</div>
+            <div class="participants-search">
+              <input class="wf-input" placeholder="名前またはメールで検索..." style="flex:1;">
+              <button class="wf-btn wf-btn-sm">追加</button>
+            </div>
+            <div class="participant-list">
+              <div class="participant-chip">
+                山田 太郎（自分）<span class="wf-badge wf-badge-green" style="margin-left:4px;">連携済</span>
+              </div>
+              <div class="participant-chip">
+                佐藤 花子 <span class="wf-badge wf-badge-green" style="margin-left:4px;">連携済</span>
+                <span class="remove">&times;</span>
+              </div>
+              <div class="participant-chip">
+                client@example.com <span class="wf-badge wf-badge-gray" style="margin-left:4px;">外部</span>
+                <span class="remove">&times;</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Duration -->
+          <div class="create-section">
+            <div class="create-section-title">会議時間</div>
+            <div class="duration-group">
+              <button class="duration-btn">15分</button>
+              <button class="duration-btn">30分</button>
+              <button class="duration-btn selected">60分</button>
+              <button class="duration-btn">90分</button>
+            </div>
+          </div>
+
+          <!-- Calendar Grid -->
+          <div class="create-section">
+            <div class="create-section-title">対応可能時間帯</div>
+            <div class="calendar-grid-container">
+              <div class="calendar-grid-toolbar">
+                <div class="calendar-grid-nav">
+                  <button class="wf-btn wf-btn-sm wf-btn-ghost">&larr;</button>
+                  <span class="calendar-grid-week">2026年4月 第2週</span>
+                  <button class="wf-btn wf-btn-sm wf-btn-ghost">&rarr;</button>
+                </div>
+                <div class="holiday-toggle">
+                  <span class="toggle-switch"></span>
+                  <span>祝日を自動除外</span>
+                </div>
+              </div>
+              <div class="calendar-grid">
+                <!-- Headers -->
+                <div class="calendar-grid-header"></div>
+                <div class="calendar-grid-header">月<br><small>4/6</small></div>
+                <div class="calendar-grid-header">火<br><small>4/7</small></div>
+                <div class="calendar-grid-header">水<br><small>4/8</small></div>
+                <div class="calendar-grid-header">木<br><small>4/9</small></div>
+                <div class="calendar-grid-header">金<br><small>4/10</small></div>
+                <div class="calendar-grid-header" style="color:#dc2626;">土<br><small>4/11</small></div>
+                <div class="calendar-grid-header" style="color:#dc2626;">日<br><small>4/12</small></div>
+                <!-- 9:00 row -->
+                <div class="calendar-grid-time">9:00</div>
+                <div class="calendar-grid-cell"><div class="available-block">9:00-12:00</div></div>
+                <div class="calendar-grid-cell"><div class="available-block">9:00-12:00</div></div>
+                <div class="calendar-grid-cell"><div class="available-block">9:00-12:00</div></div>
+                <div class="calendar-grid-cell"><div class="available-block">9:00-12:00</div></div>
+                <div class="calendar-grid-cell"><div class="available-block">9:00-12:00</div></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <!-- 10:00 row -->
+                <div class="calendar-grid-time">10:00</div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"><div class="busy-block">社内定例</div></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"><div class="busy-block">1on1</div></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <!-- 11:00 row -->
+                <div class="calendar-grid-time">11:00</div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"><div class="busy-block">ランチ</div></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <!-- 12:00 row -->
+                <div class="calendar-grid-time">12:00</div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <!-- 13:00 row -->
+                <div class="calendar-grid-time">13:00</div>
+                <div class="calendar-grid-cell"><div class="available-block">13:00-18:00</div></div>
+                <div class="calendar-grid-cell"><div class="available-block">13:00-18:00</div></div>
+                <div class="calendar-grid-cell"><div class="available-block">13:00-18:00</div></div>
+                <div class="calendar-grid-cell"><div class="available-block">13:00-18:00</div></div>
+                <div class="calendar-grid-cell"><div class="available-block">13:00-18:00</div></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <!-- 14:00 row -->
+                <div class="calendar-grid-time">14:00</div>
+                <div class="calendar-grid-cell"><div class="busy-block">クライアントMTG</div></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"><div class="busy-block">部会</div></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <!-- 15:00 - 17:00 abbreviated -->
+                <div class="calendar-grid-time">15:00</div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"><div class="busy-block">レビュー</div></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-time">16:00</div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-time">17:00</div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+                <div class="calendar-grid-cell"></div>
+              </div>
+              <div style="padding:8px 16px;font-size:11px;color:#888;display:flex;gap:16px;">
+                <span><span style="display:inline-block;width:12px;height:12px;background:#dbeafe;border:2px solid #1a56db;border-radius:2px;vertical-align:middle;"></span> 対応可能</span>
+                <span><span style="display:inline-block;width:12px;height:12px;background:#fee2e2;border-radius:2px;vertical-align:middle;"></span> 予定あり（Google Calendar）</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Meeting Options -->
+          <div class="create-section">
+            <div class="create-section-title">会議形式</div>
+            <div class="meeting-options">
+              <div class="meeting-option-item checked">
+                <div class="checkbox-fake checked"></div>
+                <div class="meeting-option-details">
+                  <div class="meeting-option-label">オンライン</div>
+                  <div class="meeting-option-desc">Google Meet URLを自動生成、またはカスタムURL（Zoom/Teams等）</div>
+                  <div class="buffer-row">
+                    <span>バッファー:</span>
+                    <span>前</span><input class="buffer-input" value="0" disabled><span>分</span>
+                    <span>後</span><input class="buffer-input" value="0" disabled><span>分</span>
+                  </div>
+                </div>
+              </div>
+              <div class="meeting-option-item">
+                <div class="checkbox-fake"></div>
+                <div class="meeting-option-details">
+                  <div class="meeting-option-label">対面（社内）</div>
+                  <div class="meeting-option-desc">会議室を選択して予約</div>
+                  <div class="meeting-sub-field" style="display:none;">
+                    <label class="wf-label">会議室</label>
+                    <select class="wf-input" style="padding:8px;">
+                      <option>6F 大会議室</option>
+                      <option>6F 小会議室A</option>
+                      <option>7F ミーティングルーム</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div class="meeting-option-item">
+                <div class="checkbox-fake"></div>
+                <div class="meeting-option-details">
+                  <div class="meeting-option-label">対面（訪問）</div>
+                  <div class="meeting-option-desc">先方のオフィスを訪問</div>
+                  <div class="meeting-sub-field" style="display:none;">
+                    <label class="wf-label">訪問先</label>
+                    <input class="wf-input" placeholder="場所名">
+                    <input class="wf-input" placeholder="住所" style="margin-top:8px;">
+                    <div class="buffer-row">
+                      <span>バッファー:</span>
+                      <span>前</span><input class="buffer-input" value="60"><span>分</span>
+                      <span>後</span><input class="buffer-input" value="60"><span>分</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Save -->
+          <div style="margin-top:32px;display:flex;gap:12px;align-items:center;">
+            <button class="wf-btn wf-btn-primary" onclick="showToast('リンクを作成しました'); switchScreen('S02')">保存してリンクを作成</button>
+            <button class="wf-btn" data-target-screen="S02">キャンセル</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== S04: 編集 ==================== -->
+      <section data-screen-id="S04">
+        <div class="create-wrapper">
+          <div class="create-header">
+            <button class="wf-btn wf-btn-sm wf-btn-ghost" data-target-screen="S02">&larr; 戻る</button>
+            <h2>スケジュールリンクを編集</h2>
+            <span class="wf-badge wf-badge-green">有効</span>
+          </div>
+
+          <!-- Same form as S03 but with pre-filled data -->
+          <div class="create-section">
+            <div class="create-section-title">基本情報</div>
+            <div class="form-group">
+              <label class="wf-label">タイトル</label>
+              <input class="wf-input" value="定例ミーティング調整">
+            </div>
+            <div class="form-group">
+              <label class="wf-label">スラッグ（URL末尾）</label>
+              <input class="wf-input" value="yamada-meeting">
+              <div class="slug-preview">boostcal.app/schedule/<strong>yamada-meeting</strong></div>
+            </div>
+            <div class="form-group">
+              <label class="wf-label">説明（任意）</label>
+              <textarea class="wf-input wf-textarea">チーム定例の調整用リンクです。</textarea>
+            </div>
+          </div>
+
+          <div class="create-section">
+            <div class="create-section-title">参加者</div>
+            <div class="participants-search">
+              <input class="wf-input" placeholder="名前またはメールで検索..." style="flex:1;">
+              <button class="wf-btn wf-btn-sm">追加</button>
+            </div>
+            <div class="participant-list">
+              <div class="participant-chip">
+                山田 太郎（自分）<span class="wf-badge wf-badge-green" style="margin-left:4px;">連携済</span>
+              </div>
+              <div class="participant-chip">
+                佐藤 花子 <span class="wf-badge wf-badge-green" style="margin-left:4px;">連携済</span>
+                <span class="remove">&times;</span>
+              </div>
+              <div class="participant-chip">
+                鈴木 一郎 <span class="wf-badge wf-badge-yellow" style="margin-left:4px;">未連携</span>
+                <span class="remove">&times;</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="create-section">
+            <div class="create-section-title">会議時間</div>
+            <div class="duration-group">
+              <button class="duration-btn">15分</button>
+              <button class="duration-btn selected">30分</button>
+              <button class="duration-btn">60分</button>
+              <button class="duration-btn">90分</button>
+            </div>
+          </div>
+
+          <!-- Abbreviated calendar (same structure as S03) -->
+          <div class="create-section">
+            <div class="create-section-title">対応可能時間帯</div>
+            <div style="padding:24px;text-align:center;background:#f9fafb;border:2px dashed #d1d5db;border-radius:8px;color:#888;">
+              [カレンダーグリッド - S03と同じ構造]<br>
+              <small>既存の設定がロードされた状態</small>
+            </div>
+          </div>
+
+          <div class="create-section">
+            <div class="create-section-title">会議形式</div>
+            <div style="padding:16px;background:#f9fafb;border:2px dashed #d1d5db;border-radius:8px;color:#888;text-align:center;">
+              [会議形式設定 - S03と同じ構造]<br>
+              <small>既存の設定がロードされた状態</small>
+            </div>
+          </div>
+
+          <!-- Generated URL -->
+          <div class="create-section" style="background:#f0fdf4;padding:16px;border-radius:8px;border:1px solid #bbf7d0;">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+              <div>
+                <div style="font-size:12px;color:#166534;font-weight:600;">共有URL</div>
+                <div style="font-family:monospace;font-size:14px;color:#1a56db;">boostcal.app/schedule/yamada-meeting</div>
+              </div>
+              <button class="wf-btn wf-btn-sm" onclick="showToast('URLをコピーしました')">URLをコピー</button>
+            </div>
+          </div>
+
+          <div style="margin-top:24px;display:flex;gap:12px;align-items:center;">
+            <button class="wf-btn wf-btn-primary" onclick="showToast('変更を保存しました'); switchScreen('S02')">変更を保存</button>
+            <button class="wf-btn" data-target-screen="S02">キャンセル</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== S05: 予約ページ（ゲスト向け） ==================== -->
+      <section data-screen-id="S05">
+        <div class="booking-wrapper">
+          <!-- Header -->
+          <div class="booking-header-info">
+            <div class="booking-host">山田 太郎</div>
+            <h1 class="booking-title">定例ミーティング調整</h1>
+            <p class="booking-desc">チーム定例の調整用リンクです。</p>
+          </div>
+
+          <!-- Optional login -->
+          <div class="booking-login-bar">
+            <span>自分の予定を重ねて表示:</span>
+            <button class="wf-btn wf-btn-sm">Googleでログイン</button>
+            <button class="wf-btn wf-btn-sm">Microsoftでログイン</button>
+          </div>
+
+          <!-- Meeting mode selector -->
+          <div style="margin-bottom:8px;"><label class="wf-label">会議形式</label></div>
+          <div class="booking-mode-selector">
+            <button class="booking-mode-btn selected">オンライン</button>
+            <button class="booking-mode-btn">対面（社内）</button>
+            <button class="booking-mode-btn">対面（訪問）</button>
+          </div>
+
+          <!-- Duration selector -->
+          <div style="margin-bottom:8px;"><label class="wf-label">会議時間</label></div>
+          <div class="booking-duration-selector">
+            <button class="duration-btn">15分</button>
+            <button class="duration-btn">30分</button>
+            <button class="duration-btn selected">60分</button>
+            <button class="duration-btn">90分</button>
+          </div>
+
+          <!-- Calendar + Slots layout -->
+          <div class="booking-layout">
+            <div class="booking-calendar-side">
+              <div class="mini-calendar">
+                <div class="mini-calendar-header">
+                  <button class="wf-btn wf-btn-sm wf-btn-ghost">&larr;</button>
+                  <span>2026年4月</span>
+                  <button class="wf-btn wf-btn-sm wf-btn-ghost">&rarr;</button>
+                </div>
+                <div class="mini-calendar-grid">
+                  <div class="mini-calendar-day-header">月</div>
+                  <div class="mini-calendar-day-header">火</div>
+                  <div class="mini-calendar-day-header">水</div>
+                  <div class="mini-calendar-day-header">木</div>
+                  <div class="mini-calendar-day-header">金</div>
+                  <div class="mini-calendar-day-header" style="color:#dc2626;">土</div>
+                  <div class="mini-calendar-day-header" style="color:#dc2626;">日</div>
+                  <!-- Row 1 -->
+                  <div class="mini-calendar-day empty"></div>
+                  <div class="mini-calendar-day empty"></div>
+                  <div class="mini-calendar-day">1</div>
+                  <div class="mini-calendar-day">2</div>
+                  <div class="mini-calendar-day">3</div>
+                  <div class="mini-calendar-day">4</div>
+                  <div class="mini-calendar-day">5</div>
+                  <!-- Row 2 -->
+                  <div class="mini-calendar-day available">6</div>
+                  <div class="mini-calendar-day available">7</div>
+                  <div class="mini-calendar-day available">8</div>
+                  <div class="mini-calendar-day available today">9</div>
+                  <div class="mini-calendar-day available selected">10</div>
+                  <div class="mini-calendar-day">11</div>
+                  <div class="mini-calendar-day">12</div>
+                  <!-- Row 3 -->
+                  <div class="mini-calendar-day available">13</div>
+                  <div class="mini-calendar-day available">14</div>
+                  <div class="mini-calendar-day available">15</div>
+                  <div class="mini-calendar-day available">16</div>
+                  <div class="mini-calendar-day available">17</div>
+                  <div class="mini-calendar-day">18</div>
+                  <div class="mini-calendar-day">19</div>
+                  <!-- Row 4 -->
+                  <div class="mini-calendar-day available">20</div>
+                  <div class="mini-calendar-day available">21</div>
+                  <div class="mini-calendar-day available">22</div>
+                  <div class="mini-calendar-day available">23</div>
+                  <div class="mini-calendar-day available">24</div>
+                  <div class="mini-calendar-day">25</div>
+                  <div class="mini-calendar-day">26</div>
+                  <!-- Row 5 -->
+                  <div class="mini-calendar-day available">27</div>
+                  <div class="mini-calendar-day available">28</div>
+                  <div class="mini-calendar-day">29</div>
+                  <div class="mini-calendar-day available">30</div>
+                  <div class="mini-calendar-day empty"></div>
+                  <div class="mini-calendar-day empty"></div>
+                  <div class="mini-calendar-day empty"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="booking-slots-side">
+              <div class="slot-date-label">4月10日（金）</div>
+              <div class="slot-list">
+                <div class="slot-item">9:00 - 10:00</div>
+                <div class="slot-item">10:00 - 11:00</div>
+                <div class="slot-item selected">11:00 - 12:00</div>
+                <div class="slot-item">13:00 - 14:00</div>
+                <div class="slot-item">15:00 - 16:00</div>
+                <div class="slot-item">16:00 - 17:00</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Booking Form (shown after slot selection) -->
+          <div class="booking-form-section">
+            <div class="booking-form-title">予約情報を入力</div>
+            <div class="booking-summary">
+              <div class="booking-summary-item">
+                <span class="booking-summary-label">日時</span>
+                <span>2026年4月10日（金） 11:00 - 12:00</span>
+              </div>
+              <div class="booking-summary-item">
+                <span class="booking-summary-label">会議時間</span>
+                <span>60分</span>
+              </div>
+              <div class="booking-summary-item">
+                <span class="booking-summary-label">形式</span>
+                <span>オンライン（Google Meet）</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="wf-label">お名前</label>
+              <input class="wf-input" placeholder="例: 田中 次郎">
+            </div>
+            <div class="form-group">
+              <label class="wf-label">メールアドレス</label>
+              <input class="wf-input" placeholder="例: tanaka@example.com" type="email">
+            </div>
+            <div class="form-group">
+              <label class="wf-label">カスタム会議URL（任意）</label>
+              <input class="wf-input" placeholder="例: https://zoom.us/j/123456789">
+              <div style="font-size:11px;color:#888;margin-top:4px;">Zoom/Teams等のURLを指定する場合に入力してください</div>
+            </div>
+            <div class="form-group">
+              <label class="wf-label">メモ（任意）</label>
+              <textarea class="wf-input wf-textarea" placeholder="事前に伝えたいことがあれば..."></textarea>
+            </div>
+            <button class="wf-btn wf-btn-primary" style="width:100%;justify-content:center;" data-target-screen="S06">予約を確定する</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== S06: 予約完了 ==================== -->
+      <section data-screen-id="S06">
+        <div class="complete-wrapper">
+          <div class="complete-card wf-card">
+            <div class="complete-icon">&#x2713;</div>
+            <h2 class="complete-title">予約が確定しました</h2>
+            <p class="complete-subtitle">確認メールを送信しました。カレンダー招待もご確認ください。</p>
+            <div class="complete-details">
+              <div class="complete-detail-row">
+                <span class="complete-detail-label">会議名</span>
+                <span>定例ミーティング調整</span>
+              </div>
+              <div class="complete-detail-row">
+                <span class="complete-detail-label">日時</span>
+                <span>2026年4月10日（金） 11:00 - 12:00</span>
+              </div>
+              <div class="complete-detail-row">
+                <span class="complete-detail-label">会議時間</span>
+                <span>60分</span>
+              </div>
+              <div class="complete-detail-row">
+                <span class="complete-detail-label">形式</span>
+                <span>オンライン（Google Meet）</span>
+              </div>
+              <div class="complete-detail-row">
+                <span class="complete-detail-label">主催者</span>
+                <span>山田 太郎</span>
+              </div>
+              <div class="complete-detail-row">
+                <span class="complete-detail-label">ゲスト</span>
+                <span>田中 次郎 (tanaka@example.com)</span>
+              </div>
+              <hr class="wf-divider">
+              <div style="text-align:center;padding:8px 0;">
+                <div style="font-size:12px;color:#888;margin-bottom:4px;">会議URL</div>
+                <div style="font-family:monospace;font-size:13px;color:#1a56db;">https://meet.google.com/abc-defg-hij</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== S07: エラー画面 ==================== -->
+      <section data-screen-id="S07">
+        <div class="error-wrapper">
+          <div class="error-card wf-card">
+            <div class="error-icon">!</div>
+            <h2 style="font-size:20px;font-weight:700;margin-bottom:8px;">リンクが見つかりません</h2>
+            <p style="color:#888;font-size:14px;margin-bottom:24px;">
+              このスケジュールリンクは無効か、削除されています。<br>
+              URLをご確認のうえ、再度お試しください。
+            </p>
+            <button class="wf-btn" data-target-screen="S01">トップページへ</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Toast -->
+    <div class="wf-toast" id="toast"></div>
+  </div>
+
+  <script>
+    // Screen switching
+    const screens = document.querySelectorAll('section[data-screen-id]');
+    const navButtons = document.querySelectorAll('.wireframe-header-nav button[data-target-screen]');
+    const screenLabel = document.getElementById('currentScreenLabel');
+    const screenNames = {
+      S01: 'ログイン',
+      S02: 'ダッシュボード',
+      S03: '新規作成',
+      S04: '編集',
+      S05: '予約ページ',
+      S06: '予約完了',
+      S07: 'エラー'
+    };
+
+    function switchScreen(id) {
+      screens.forEach(s => s.classList.remove('active'));
+      navButtons.forEach(b => b.classList.remove('active'));
+      const target = document.querySelector(`section[data-screen-id="${id}"]`);
+      const btn = document.querySelector(`.wireframe-header-nav button[data-target-screen="${id}"]`);
+      if (target) target.classList.add('active');
+      if (btn) btn.classList.add('active');
+      screenLabel.textContent = `${id}: ${screenNames[id] || ''}`;
+      window.scrollTo(0, 0);
+    }
+
+    // Click handlers for all buttons with data-target-screen
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-target-screen]');
+      if (btn) {
+        e.preventDefault();
+        switchScreen(btn.dataset.targetScreen);
+      }
+    });
+
+    // Duration button toggle
+    document.querySelectorAll('.duration-group').forEach(group => {
+      group.addEventListener('click', (e) => {
+        const btn = e.target.closest('.duration-btn');
+        if (!btn) return;
+        group.querySelectorAll('.duration-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+      });
+    });
+
+    // Booking mode toggle
+    document.querySelector('.booking-mode-selector')?.addEventListener('click', (e) => {
+      const btn = e.target.closest('.booking-mode-btn');
+      if (!btn) return;
+      document.querySelectorAll('.booking-mode-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+    });
+
+    // Meeting option checkbox toggle
+    document.querySelectorAll('.meeting-option-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('input, select, button')) return;
+        const cb = item.querySelector('.checkbox-fake');
+        const isChecked = cb.classList.toggle('checked');
+        item.classList.toggle('checked', isChecked);
+        const sub = item.querySelector('.meeting-sub-field');
+        if (sub) sub.style.display = isChecked ? 'block' : 'none';
+      });
+    });
+
+    // Slot selection
+    document.querySelectorAll('.slot-item').forEach(slot => {
+      slot.addEventListener('click', () => {
+        document.querySelectorAll('.slot-item').forEach(s => s.classList.remove('selected'));
+        slot.classList.add('selected');
+      });
+    });
+
+    // Mini calendar day click
+    document.querySelectorAll('.mini-calendar-day:not(.empty)').forEach(day => {
+      day.addEventListener('click', () => {
+        document.querySelectorAll('.mini-calendar-day').forEach(d => d.classList.remove('selected'));
+        day.classList.add('selected');
+      });
+    });
+
+    // Toast
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    // Delete modal
+    function showDeleteModal() {
+      document.getElementById('deleteModal').classList.add('show');
+    }
+    function hideDeleteModal() {
+      document.getElementById('deleteModal').classList.remove('show');
+    }
+    document.getElementById('deleteModal')?.addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) hideDeleteModal();
+    });
+  </script>
+</body>
+</html>
