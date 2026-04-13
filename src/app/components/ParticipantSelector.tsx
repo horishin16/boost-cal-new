@@ -244,6 +244,9 @@ export function ParticipantSelector({
           <p className="text-xs text-gray-500 mb-1">
             選択済み社内メンバー ({selectedInternalIds.length}人)
           </p>
+          {selectedInternalIds.some((id) => !memberCache[id]) ? (
+            <p className="text-xs text-gray-400">読み込み中...</p>
+          ) : (
           <ul className="space-y-1">
             {selectedInternalIds.map((id) => {
               const m = memberCache[id];
@@ -253,7 +256,7 @@ export function ParticipantSelector({
                   className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-md px-3 py-2"
                 >
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{m?.name ?? id}</p>
+                    <p className="text-sm font-medium text-gray-900">{m?.name}</p>
                     {m?.email && <p className="text-xs text-gray-500">{m.email}</p>}
                   </div>
                   <button
@@ -267,6 +270,7 @@ export function ParticipantSelector({
               );
             })}
           </ul>
+          )}
         </div>
       )}
 
