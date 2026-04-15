@@ -10,6 +10,7 @@ function createMockBookingRepo(): BookingRepository {
     create: vi.fn(),
     checkOverlap: vi.fn(),
     createParticipants: vi.fn(),
+    findActiveByEmailAndLink: vi.fn().mockResolvedValue(null),
   } as unknown as BookingRepository;
 }
 

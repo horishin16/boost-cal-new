@@ -3,6 +3,11 @@ import type { BookingRepository } from '@/domain/repositories/booking-repository
 import type { ScheduleLinkRepository } from '@/domain/repositories/schedule-link-repository';
 import type { UserRepository } from '@/domain/repositories/user-repository';
 import { createCalendarEvent } from '@/lib/google/calendar';
+import {
+  sendEmail,
+  buildBookingNotificationEmail,
+  buildConfirmationEmail,
+} from '@/lib/email';
 
 interface CreateBookingInput {
   clientName: string;
@@ -134,6 +139,49 @@ export class BookingService {
     const participantIds = link.settings.participants?.internalIds ?? [];
     if (participantIds.length > 0) {
       await this.bookingRepository.createParticipants(booking.id, participantIds);
+    }
+
+    // Send notification emails (best-effort)
+    try {
+      const recipients = new Set<string>();
+      if (this.userRepository) {
+        const owner = await this.userRepository.findById(link.ownerId);
+        if (owner?.email) recipients.add(owner.email);
+        for (const pid of participantIds) {
+          const p = await this.userRepository.findById(pid);
+          if (p?.email) recipients.add(p.email);
+        }
+      }
+      const externalEmails = link.settings.participants?.externalEmails ?? [];
+      for (const em of externalEmails) recipients.add(em);
+
+      if (recipients.size > 0) {
+        const { subject, html } = buildBookingNotificationEmail({
+          linkName: link.name,
+          clientName: input.clientName,
+          clientEmail: input.clientEmail,
+          startTime,
+          endTime,
+          meetingMode: input.meetingMode,
+          meetingUrl: meetingUrl ?? null,
+          locationName: locationName ?? null,
+          locationAddress: locationAddress ?? null,
+          notes: input.notes ?? null,
+        });
+        await sendEmail({ to: Array.from(recipients), subject, html });
+      }
+
+      const conf = buildConfirmationEmail({
+        eventTitle,
+        startTime,
+        endTime,
+        meetingUrl: meetingUrl ?? null,
+        meetingMode: input.meetingMode,
+        clientName: input.clientName,
+      });
+      await sendEmail({ to: [input.clientEmail], subject: conf.subject, html: conf.html });
+    } catch (err) {
+      console.error('[BookingService] failed to send notification email', err);
     }
 
     return booking;

@@ -90,6 +90,60 @@ export function buildReminderEmail(booking: {
   return { subject, html };
 }
 
+export function buildBookingNotificationEmail(params: {
+  linkName: string;
+  clientName: string;
+  clientEmail: string;
+  startTime: Date;
+  endTime: Date;
+  meetingMode: string;
+  meetingUrl: string | null;
+  locationName: string | null;
+  locationAddress: string | null;
+  notes: string | null;
+}): { subject: string; html: string } {
+  const dateStr = params.startTime.toLocaleDateString('ja-JP', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    weekday: 'long',
+  });
+  const startStr = params.startTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+  const endStr = params.endTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+
+  const modeLabel =
+    params.meetingMode === 'online' ? 'オンライン'
+    : params.meetingMode === 'inPerson_office' ? '対面（弊社オフィス）'
+    : params.meetingMode === 'inPerson_visit' ? '対面（貴社指定）'
+    : params.meetingMode;
+
+  const subject = `【新しい予約】${params.linkName} - ${params.clientName} 様`;
+
+  const locationHtml = params.meetingUrl
+    ? `<p><strong>会議URL:</strong> <a href="${params.meetingUrl}">${params.meetingUrl}</a></p>`
+    : params.locationName
+      ? `<p><strong>場所:</strong> ${params.locationName}${params.locationAddress ? ` (${params.locationAddress})` : ''}</p>`
+      : '';
+
+  const notesHtml = params.notes
+    ? `<p><strong>メモ:</strong><br>${params.notes.replace(/\n/g, '<br>')}</p>`
+    : '';
+
+  const html = `
+    <h2>新しい予約が入りました</h2>
+    <p><strong>予約リンク:</strong> ${params.linkName}</p>
+    <p><strong>予約者:</strong> ${params.clientName} 様 (${params.clientEmail})</p>
+    <p><strong>日時:</strong> ${dateStr} ${startStr} 〜 ${endStr}</p>
+    <p><strong>会議形式:</strong> ${modeLabel}</p>
+    ${locationHtml}
+    ${notesHtml}
+    <hr style="margin: 24px 0; border: none; border-top: 1px solid #eee;">
+    <p style="color: #999; font-size: 11px;">このメールは BoostCal から自動送信されています。</p>
+  `;
+
+  return { subject, html };
+}
+
 export function buildConfirmationEmail(booking: {
   eventTitle: string | null;
   startTime: Date;
