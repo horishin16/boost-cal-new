@@ -61,14 +61,16 @@ export function buildReminderEmail(booking: {
   locationAddress: string | null;
   clientName: string;
 }, participantNames: string[]): { subject: string; html: string } {
+  const tz = 'Asia/Tokyo';
   const dateStr = booking.startTime.toLocaleDateString('ja-JP', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     weekday: 'long',
+    timeZone: tz,
   });
-  const startStr = booking.startTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-  const endStr = booking.endTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+  const startStr = booking.startTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', timeZone: tz });
+  const endStr = booking.endTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', timeZone: tz });
 
   const subject = `【リマインダー】${booking.eventTitle ?? '予定'} (${dateStr})`;
 
@@ -102,14 +104,16 @@ export function buildBookingNotificationEmail(params: {
   locationAddress: string | null;
   notes: string | null;
 }): { subject: string; html: string } {
+  const tz = 'Asia/Tokyo';
   const dateStr = params.startTime.toLocaleDateString('ja-JP', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     weekday: 'long',
+    timeZone: tz,
   });
-  const startStr = params.startTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-  const endStr = params.endTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+  const startStr = params.startTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', timeZone: tz });
+  const endStr = params.endTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', timeZone: tz });
 
   const modeLabel =
     params.meetingMode === 'online' ? 'オンライン'
@@ -152,14 +156,16 @@ export function buildConfirmationEmail(booking: {
   meetingMode: string;
   clientName: string;
 }): { subject: string; html: string } {
+  const tz = 'Asia/Tokyo';
   const dateStr = booking.startTime.toLocaleDateString('ja-JP', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     weekday: 'long',
+    timeZone: tz,
   });
-  const startStr = booking.startTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-  const endStr = booking.endTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+  const startStr = booking.startTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', timeZone: tz });
+  const endStr = booking.endTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', timeZone: tz });
 
   const subject = `【予約確定】${booking.eventTitle ?? '予定'}`;
 
